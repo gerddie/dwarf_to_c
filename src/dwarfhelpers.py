@@ -22,7 +22,7 @@ def expect_addr(attr):
 
 def get_flag(die, attrname, default=None):
     try:
-        attr = die.attr_dict[attrname]
+        attr = die.attributes[attrname]
     except KeyError:
         return default
     else:
@@ -30,7 +30,7 @@ def get_flag(die, attrname, default=None):
 
 def get_str(die, attrname, default=None, allow_none=True):
     try:
-        attr = die.attr_dict[attrname]
+        attr = die.attributes[attrname]
     except KeyError:
         return default
     else:
@@ -38,7 +38,7 @@ def get_str(die, attrname, default=None, allow_none=True):
 
 def get_int(die, attrname, default=None):
     try:
-        attr = die.attr_dict[attrname]
+        attr = die.attributes[attrname]
     except KeyError:
         return default
     else:
@@ -46,7 +46,7 @@ def get_int(die, attrname, default=None):
 
 def get_ref(die, attrname, default=None):
     try:
-        attr = die.attr_dict[attrname]
+        attr = die.attributes[attrname]
     except KeyError:
         return default
     else:
@@ -54,7 +54,7 @@ def get_ref(die, attrname, default=None):
 
 def get_addr(die, attrname, default=None):
     try:
-        attr = die.attr_dict[attrname]
+        attr = die.attributes[attrname]
     except KeyError:
         return default
     else:

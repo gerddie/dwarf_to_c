@@ -7,8 +7,11 @@ pretty-printer.
 from __future__ import print_function, division, unicode_literals
 import argparse
 import os, sys
-from bintools.dwarf import DWARF
-from bintools.dwarf.enums import DW_AT, DW_TAG, DW_LANG, DW_ATE, DW_FORM, DW_OP, DW_ATE
+
+from pathlib import Path
+from elftools.elf.elffile import ELFFile
+from elftools import dwarf
+from elftools.dwarf.enums import ENUM_DW_AT, ENUM_DW_TAG, ENUM_DW_LANG, ENUM_DW_ATE, ENUM_DW_FORM, ENUM_DW_ATE
 from dwarfhelpers import get_flag, get_str, get_int, get_ref, not_none, expect_str
 '''
 Output format JSON/Python:
@@ -53,7 +56,7 @@ def visit_base_type(die,dies_dict):
     type_info = {
         'kind': 'base_type',
         'byte_size': get_int(die, 'byte_size'),
-        'encoding': DW_ATE[get_int(die, 'encoding')],
+        'encoding': ENUM_DW_ATE[get_int(die, 'encoding')],
     }
     if DEBUG:
         print(type_info)
@@ -138,15 +141,16 @@ def visit_structure_type(die,dies_dict):
     return type_info
 
 def process_compile_unit(dwarf, cu, roots):
-    cu_die = cu.compile_unit
+    cu_die = cu.get_top_DIE()
     # Generate actual syntax tree
     global worklist
     global visited
     types = {}
     worklist = []
-    for child in cu_die.children:
-        visited = set()
-
+    visited = set()
+    
+    for child in cu_die.iter_children():
+       
         name = get_str(child, 'name')
         if name is not None: # non-anonymous
             if name in roots: # nest into this structure
@@ -154,9 +158,9 @@ def process_compile_unit(dwarf, cu, roots):
               
     while worklist:
         die = worklist.pop()
-        if die is None or die.offset in visited:
+        if die is None or die.cu_offset in visited:
             continue
-        visited.add(die.offset)
+        visited.add(die.cu_offset)
         if get_flag(die, "declaration"): # only predeclaration, skip
             continue
 
@@ -181,17 +185,22 @@ def process_compile_unit(dwarf, cu, roots):
 
 
 # Main conversion function
-def parse_dwarf(infile, roots):
-    if not os.path.isfile(infile):
-        error("No such file %s" % infile)
-        exit(1)
-    dwarf = DWARF(infile)
+def parse_dwarf(filename, roots):
+    
+    with open(filename, 'rb') as f:
+        elffile = ELFFile(f)
 
-    for cu in dwarf.info.cus:
-        progress("Processing %s" % cu.name)
-        types = process_compile_unit(dwarf, cu, roots)
-        if all(x in types for x in roots): # return if all roots found
-            return types
+        if not elffile.has_dwarf_info():
+            print('  file has no DWARF info')
+            return
+    
+        dwarfinfo = elffile.get_dwarf_info()
+    
+        for cu in dwarfinfo.iter_CUs():
+            progress("Processing %s" %  Path(cu.get_top_DIE().get_full_path()).as_posix())
+            types = process_compile_unit(dwarfinfo, cu, roots)
+            if all(x in types for x in roots): # return if all roots found
+                return types
 
     return None # not found
 
